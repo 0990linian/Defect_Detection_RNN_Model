@@ -71,7 +71,7 @@ def get_hist_field(pogo_inp_name):
 	
 	cp_inp = remote_command_execute(
 		"scp pogo_gen/{} nl2314@crunch5.me.ic.ac.uk:~/fyp".format(pogo_inp_name),
-		"copying pogo-inp file to remote machine..."
+		"copying pogo-inp file {} to remote machine...".format(pogo_inp_name)
 	)
 
 	pogo_cmd = remote_command_execute(
@@ -81,17 +81,17 @@ def get_hist_field(pogo_inp_name):
 
 	cp_hist = remote_command_execute(
 		"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format(pogo_hist_name),
-		"copying pogo-hist file back to local machine..."
+		"copying pogo-hist file {} back to local machine...".format(pogo_hist_name)
 	)
 
 	cp_field = remote_command_execute(
 		"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format(pogo_field_name),
-		"copying pogo-field file back to local machine..."
+		"copying pogo-field file {} back to local machine...".format(pogo_field_name)
 	)
 
 	rm_pogo = remote_command_execute(
 		"ssh -T nl2314@crunch5.me.ic.ac.uk \"rm ~/fyp/{0}*\"".format(pogo_inp_name[:-3]),
-		"removing pogo-related files on the remote machine..."
+		"removing pogo-related files {} on the remote machine...".format(pogo_inp_name[:-3])
 	)
 
 	command_result = cp_inp and pogo_cmd and cp_hist and cp_field and rm_pogo	
@@ -144,7 +144,3 @@ def remote_command_execute(command, process_description):
 		return False
 
 
-if __name__ == "__main__":
-	for num in range(9, 22):
-		pogo_inp = "struct2d_circle_E{}.pogo-inp".format(num * 10)
-		get_hist_field(pogo_inp)
