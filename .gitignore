@@ -1,4 +1,5 @@
 # Directories and files below are to be ignored by Git #
+pogo_data_generation/__pycache__
 pogo_data_generation/pogoMatlab
 pogo_data_generation/pogo_gen
 pogo_data_generation/database_circle.db
@@ -10,4 +11,4 @@ pogo_data_generation/gen_varying_velocity.m
 pogo_data_generation/viewField.m
 pogo_data_generation/viewHist.m
 pogo_data_generation/view_hist.m
-pogo_data_generation/__pycache__
+pogo_data_generation/pogo_get_hist_field.txt

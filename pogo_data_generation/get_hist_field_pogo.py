@@ -13,21 +13,23 @@ logger.setLevel(logging.DEBUG)
 
 # Set the mode to "writing" so that every time we re-run the script, the 
 # previous log does not remain.
-file_handler = logging.FileHandler("get_hist_field_pogo.log", mode="w")
+file_handler = logging.FileHandler("pogo_get_hist_field.log", mode="w")
 formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
 file_handler.setFormatter(formatter)
 
 # StreamHandler enables the logging message to be also output on the console.
+# To prevent too much print for large data generation, only output to console 
+# when error occurs.
 # It can also set thee output event level.
 stream_handdler = logging.StreamHandler()
-stream_handdler.setLevel(logging.INFO)
+stream_handdler.setLevel(logging.ERROR)
 stream_handdler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 logger.addHandler(stream_handdler)
 
 
-def get_hist_field(pogo_inp_name):
+def pogo_get_hist_field(pogo_inp_name):
 	"""
 	This function aims to get history and field files run from Pogo on the 
 	remote machine while hiding the relative long system output from Pogo 
@@ -67,7 +69,6 @@ def get_hist_field(pogo_inp_name):
 	"""
 	pogo_field_name = pogo_inp_name[:-3] + "field"
 	pogo_hist_name = pogo_inp_name[:-3] + "hist"
-	pogo_block_name = pogo_inp_name[:-3] + "block"
 	
 	cp_inp = remote_command_execute(
 		"scp pogo_gen/{} nl2314@crunch5.me.ic.ac.uk:~/fyp".format(pogo_inp_name),
@@ -84,17 +85,22 @@ def get_hist_field(pogo_inp_name):
 		"copying pogo-hist file {} back to local machine...".format(pogo_hist_name)
 	)
 
-	cp_field = remote_command_execute(
-		"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format(pogo_field_name),
-		"copying pogo-field file {} back to local machine...".format(pogo_field_name)
-	)
+	# cp_field = remote_command_execute(
+	# 	"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format(pogo_field_name),
+	# 	"copying pogo-field file {} back to local machine...".format(pogo_field_name)
+	# )
 
 	rm_pogo = remote_command_execute(
 		"ssh -T nl2314@crunch5.me.ic.ac.uk \"rm ~/fyp/{0}*\"".format(pogo_inp_name[:-3]),
-		"removing pogo-related files {} on the remote machine...".format(pogo_inp_name[:-3])
+		"removing pogo-related files {} on the remote machine...".format(pogo_inp_name[:-9])
 	)
 
-	command_result = cp_inp and pogo_cmd and cp_hist and cp_field and rm_pogo	
+	command_result = cp_inp and pogo_cmd and cp_hist and rm_pogo
+	print("{} pogo process {}.".format(
+		pogo_inp_name[:-9], 
+		"success" if command_result else "fail")
+	)
+
 	return command_result
 
 
@@ -142,5 +148,3 @@ def remote_command_execute(command, process_description):
 			.format(process_description[:-3], command_err)
 		)
 		return False
-
-
