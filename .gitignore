@@ -10,3 +10,4 @@ pogo_data_generation/gen_varying_velocity.m
 pogo_data_generation/viewField.m
 pogo_data_generation/viewHist.m
 pogo_data_generation/view_hist.m
+pogo_data_generation/__pycache__
