@@ -127,7 +127,7 @@ def write_pogo_into_db(cursor, matlab_engine, pogo_name):
 
 	cursor.execute(
 		"CREATE TABLE {}"
-		"(time real, emitter real, receiver real, inclusion_speed real)"
+		"(time real, emitter real, receiver real)"
 		.format(pogo_name)
 	)
 
