@@ -1,31 +1,32 @@
+import pickle
 import sqlite3
+from sklearn.model_selection import train_test_split
 
 
-def get_data_from_dtaabase(database):
+def create_training_testing_data(database):
+	X, y = [], []
 	db_connection = sqlite3.connect(database)
-	cursor = db_connection.cursor()
+	cursor_speed = db_connection.cursor()
+	cursor_data = db_connection.cursor()
 
-	cursor.execute("SELECT * FROM Nian")
-	a = cursor.fetchall()
-	print(a)
-	print(len(a))
-	print(len(a[0]))
+	cursor_speed.execute("SELECT * FROM inclusion_speed")
+	speed_info = cursor_speed.fetchone()
+	while speed_info:
+		(current_table, speed) = speed_info
+		cursor_data.execute("SELECT * FROM {}".format(current_table))
+		X.append(cursor_data.fetchall())
+		y.append(speed)
+		speed_info = cursor_speed.fetchone()
 
-
-def create_new_database(database):
-	db_connection = sqlite3.connect(database)
-	cursor = db_connection.cursor()
-
-	cursor.execute("CREATE TABLE Nian (thing1 real, thing2 real, speed real)")
-	cursor.execute("INSERT INTO Nian (thing1, thing2, speed) VALUES (?, ?, ?)", (3.4, 4.5, 6.7))
-	for i in range(20):
-		cursor.execute("INSERT INTO Nian (thing1, thing2) VALUES (?, ?)", (i + 0.9, i + 20))
-	db_connection.commit()
+	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+	
+	with open("speed_model.pickle", "wb") as pickle_save:
+		pickle.dump([X_train, X_test, y_train, y_test], pickle_save)
 
 
 if __name__ == "__main__":
-	create_new_database("Nian.db")
-	get_data_from_dtaabase("Nian.db")
+	database = "pogo_circle.db"
+	create_training_testing_data(database)
 
 
 
