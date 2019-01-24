@@ -12,3 +12,4 @@ pogo_data_generation/viewField.m
 pogo_data_generation/viewHist.m
 pogo_data_generation/view_hist.m
 pogo_data_generation/pogo_get_hist_field.log
+pogo_data_generation/speed_model.pickle
