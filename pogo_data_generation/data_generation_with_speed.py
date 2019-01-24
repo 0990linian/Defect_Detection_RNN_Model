@@ -19,7 +19,7 @@ def main():
 	"""
 	start_E, end_E = 50, 210
 	start_R, end_R = 5, 15
-	database = "pogo_circle.db"
+	database = "pogo_circle_stand.db"
 	db_connection = create_database(database)
 	matlab_engine = matlab.engine.start_matlab()
 	generate_pogo_data(matlab_engine, db_connection, start_E, end_E, start_R, end_R)
@@ -97,7 +97,9 @@ def generate_pogo_data(
 			)
 			pogo_get_hist_field(pogo_name + ".pogo-inp")
 			write_pogo_into_db(cursor, matlab_engine, pogo_name)
-			os.remove("pogo_gen/" + pogo_name + ".pogo-inp")
+			pogo_inp = "pogo_gen/" + pogo_name + ".pogo-inp"
+			if os.path.isfile(pogo_inp):
+				os.remove(pogo_inp)
 		
 		db_connection.commit()
 

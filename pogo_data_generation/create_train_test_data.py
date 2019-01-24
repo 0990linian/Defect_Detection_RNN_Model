@@ -41,12 +41,12 @@ def create_training_testing_data(database):
 
 	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 	
-	with open("speed_model.pickle", "wb") as pickle_save:
+	with open("speed_model_stand.pickle", "wb") as pickle_save:
 		pickle.dump([X_train, X_test, y_train, y_test], pickle_save)
 
 
 if __name__ == "__main__":
-	database = "pogo_circle.db"
+	database = "pogo_circle_stand.db"
 	create_training_testing_data(database)
 
 
