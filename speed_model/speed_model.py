@@ -33,31 +33,24 @@ def main():
         None
     """
     create_database(database)
-    cell_type = ["LSTM", "GRU"]
 
-    for i in range(2):
-        if i != 0:
-            continue
-        chosen_cell_type = cell_type[i]
-
-        table_name = "run_1_25_00{}".format(i)
-        add_table_in_database(
-            chosen_cell_type,
-            dropout_keep_prob,
-            batch_size,
-            table_name
-        )
-        # ----------------------------------------------------------------------
-        # Model building and training.
-        # ----------------------------------------------------------------------
-        speed_model = rnn_model(
-            cell_type=chosen_cell_type
-        )
-        train_network(
-            speed_model,
-            table_name,
-            batch_size=batch_size
-        )
+    add_table_in_database(
+        cell_type,
+        dropout_keep_prob,
+        batch_size,
+        save_dir
+    )
+    # ----------------------------------------------------------------------
+    # Model building and training.
+    # ----------------------------------------------------------------------
+    speed_model = rnn_model(
+        cell_type=cell_type
+    )
+    train_network(
+        speed_model,
+        save_dir,
+        batch_size=batch_size
+    )
 
 
 def create_database(database):
@@ -74,7 +67,6 @@ def create_database(database):
         "cell_type VARCHAR(255), "
         "dropout_keep_prob real, "
         "batch_size INT, "
-        "save_dir VARCHAR(255), "
         "table_name VARCHAR(255))"
     )
 
@@ -95,8 +87,8 @@ def add_table_in_database(
     db_connection = sqlite3.connect(database)
     cursor = db_connection.cursor()
     cursor.execute(
-        "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (num_epochs, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, save_dir, table_name)
+        "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (num_epochs, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, table_name)
     )
     cursor.execute(
         "CREATE TABLE {} (train_error real, test_error real)"
@@ -150,7 +142,7 @@ def rnn_model(cell_type="LSTM"):
     # last_output [batch_size, state_size].
     last_output = tf.unstack(rnn_outputs, axis=1)[-1]
  
-    fc_output_1 = tf.nn.tanh(fc_layer(last_output, 100, 10, "fc_1"))
+    fc_output_1 = tf.nn.tanh(fc_layer(last_output, state_size, 10, "fc_1"))
     fc_output_2 = fc_layer(fc_output_1, 10, num_classes, "fc_2")
     logits = tf.identity(fc_output_2, name="logits")
 
@@ -250,14 +242,14 @@ def train_network(
                         feed_dict_train[model["learning_rate"]] = 1e-4
                         learning_rate_change = True
 
-                    if test_error < 0.1 and not os.path.isdir(save_dir + "10"):
-                        model["saver"].save(sess, save_dir + "10/model.ckpt")
-                    elif test_error < 0.09 and not os.path.isdir(save_dir + "9"):
-                        model["saver"].save(sess, save_dir + "9/model.ckpt")
-                    elif test_error < 0.08 and not os.path.isdir(save_dir + "8"):
-                        model["saver"].save(sess, save_dir + "8/model.ckpt")
-                    elif test_error < 0.07 and not os.path.isdir(save_dir + "7"):
-                        model["saver"].save(sess, save_dir + "5/model.ckpt")
+                    if test_error < 0.1 and not os.path.isdir(save_dir + "_10"):
+                        model["saver"].save(sess, save_dir + "_10/model.ckpt")
+                    elif test_error < 0.09 and not os.path.isdir(save_dir + "_9"):
+                        model["saver"].save(sess, save_dir + "_9/model.ckpt")
+                    elif test_error < 0.08 and not os.path.isdir(save_dir + "_8"):
+                        model["saver"].save(sess, save_dir + "_8/model.ckpt")
+                    elif test_error < 0.07 and not os.path.isdir(save_dir + "_7"):
+                        model["saver"].save(sess, save_dir + "_7/model.ckpt")
 
             db_connection.commit()
 
@@ -275,11 +267,14 @@ if __name__ == "__main__":
     num_layers = 1
     num_inputs = 3
     num_classes = 1
-    state_size = 100
     dropout_keep_prob = 1
     num_steps = len(X_train[0])
     len_test = len(X_test)
     y_test = [[y / 10000] for y in y_test]
-    save_dir = "1_25_test_error_"
+    save_counter = 2
 
-    main()
+    for state_size in [50, 100, 200]:
+        for cell_type in ["LSTM", "GRU"]:
+            save_dir = "test_error_1_25_0" + str(save_counter)
+            main()
+            save_counter += 1
