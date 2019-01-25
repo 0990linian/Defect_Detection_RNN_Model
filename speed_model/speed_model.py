@@ -6,25 +6,66 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import sys
 import random
 import pickle
-import logging
+import sqlite3
 import numpy as np
 import tensorflow as tf
 
 # Disable tensorflow warning about deprecated commands.
 tf.logging.set_verbosity(tf.logging.ERROR)
 
-logging.basicConfig(filename="speed_model_train.log",
-                    level=logging.DEBUG,
-                    format="%(asctime)s - %(levelname)s - %(message)s",
-                    filemode="w")
+
+def create_database(
+        database
+    ):
+    db_connection = sqlite3.connect(database)
+    cursor = db_connection.cursor()
+    cursor.execute(
+        "CREATE TABLE IF NOT EXISTS table_list ("
+        "epoch INT, "
+        "num_layers INT, "
+        "state_size INT, "
+        "cell_type VARCHAR(255), "
+        "dropout_keep_prob real, "
+        "batch_size INT, "
+        "saving_directory VARCHAR(255), "
+        "table_name VARCHAR(255))"
+    )
+
+    db_connection.commit()
+    return db_connection
+
+
+def add_table_in_database(
+        database,
+        epoch,
+        num_layers,
+        state_size,
+        cell_type,
+        dropout_keep_prob,
+        batch_size,
+        saving_directory,
+        table_name
+    ):
+    db_connection = sqlite3.connect(database)
+    cursor = db_connection.cursor()
+    cursor.execute(
+        "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (epoch, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, saving_directory, table_name)
+    )
+    cursor.execute(
+        "CREATE TABLE {} (train_error real, test_error real)"
+        .format(table_name)
+    )
+    db_connection.commit()
+
 
 def multilayer_lstm_graph_dynamic_rnn(
-	    state_size=100,
-	    num_inputs=3,
-	    num_classes=1,
-	    num_steps=500,
-	    num_layers=1,
-	    cell_type="LSTM"
+        state_size=100,
+        num_inputs=3,
+        num_classes=1,
+        num_steps=500,
+        num_layers=1,
+        cell_type="LSTM"
     ):
 
     x = tf.placeholder(tf.float32, [None, num_steps, num_inputs], name='X')
@@ -100,23 +141,21 @@ def fc_layer(input, n_input_units, n_output_units):
 def train_network(
         g, 
         num_epochs,
+        database,
+        table,
         num_steps=200, 
         batch_size=32
     ):
-    logging.debug("learning rate changing: 1e-3 -> 1e-4 when training_error less than 0.1")
-    logging.debug("epoch number: 5")
-    logging.debug("training error reports every 30 iterations")
-    logging.debug("dropout keep rate: 1")
-    logging.debug("cell type: LSTM\n")
-
+    db_connection = sqlite3.connect(database)
+    cursor = db_connection.cursor()
     learning_rate_change = False
     feed_dict_train = {g["batch_size"]: batch_size, g["learning_rate"]: 1e-3, g["dropout_keep_prob"]: 0.8}
+    iter_num = 30
 
     with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
         
         for epoch_count in range(num_epochs):
-            logging.debug("epoch {}".format(epoch_count + 1))
             train_error = 0
         
             for index, (X, Y) in enumerate(zip(X_train, y_train), 1):
@@ -129,51 +168,72 @@ def train_network(
                     )
                 train_error += train_error_
 
-                if index % 30 == 0:
+                if index % iter_num == 0:
                     feed_dict_test = {g["batch_size"]: len_test, g["dropout_keep_prob"]: 1, g["x"]: X_test, g["y"]: y_test}
                     test_error = sess.run(g["error"], feed_dict_test)
-                    train_message = "Training error: {}".format(train_error / 30)
+                    train_message = "Training error: {}".format(train_error / iter_num)
                     test_message = "Testing error: {}\n".format(test_error)
                     print(train_message)
                     print(test_message)
-                    logging.debug(train_message)
-                    logging.debug(test_message)
+                    cursor.execute(
+                        "INSERT INTO {} VALUES (?, ?)".format(table_name), 
+                        (train_error / iter_num, test_error)
+                    )
                     train_error = 0
                     
-                    if not learning_rate_change and test_error < 0.14:
+                    if not learning_rate_change and test_error < 0.15:
                         print("learning_rate changed to 1e-4")
                         feed_dict_train[g["learning_rate"]] = 1e-4
                         learning_rate_change = True
+                        g["saver"].save(sess, saving_directory + "15/model.ckpt")
 
-                    if test_error < 0.1 and not os.path.isdir("test_error_10"):
+                    if test_error < 0.1 and not os.path.isdir(saving_directory + "10"):
                         g["saver"].save(sess, saving_directory + "10/model.ckpt")
-                    elif test_error < 0.09 and not os.path.isdir("test_error_9"):
+                    elif test_error < 0.09 and not os.path.isdir(saving_directory + "9"):
                         g["saver"].save(sess, saving_directory + "9/model.ckpt")
-                    elif test_error < 0.08 and not os.path.isdir("test_error_8"):
+                    elif test_error < 0.08 and not os.path.isdir(saving_directory + "8"):
                         g["saver"].save(sess, saving_directory + "8/model.ckpt")
-                    elif test_error < 0.07 and not os.path.isdir("test_error_7"):
+                    elif test_error < 0.07 and not os.path.isdir(saving_directory + "7"):
                         g["saver"].save(sess, saving_directory + "5/model.ckpt")
+
+            db_connection.commit()
 
 
 if __name__ == "__main__":
     with open("../pogo_data_generation/speed_model_stand.pickle", "rb") as pickle_save:
         X_train, X_test, y_train, y_test = pickle.load(pickle_save)
 
+    database = "speed_model_train.db"
     epoch = 5
     batch_size = 1
     num_layers = 1
     state_size = 100
+    dropout_keep_prob = 1
     timestep = len(X_train[0])
     len_test = len(X_test)
     y_test = [[y / 10000] for y in y_test]
     cell_type = ["LSTM", "GRU", "LSTM_LN", "customized_layer_norm_LSTM"]
     saving_directory = "1_24_test_error_"
 
+    create_database(database)
+
     for i in range(4):
         if i != 0:
             continue
         chosen_cell_type = cell_type[i]
 
+        table_name = "1_24_00{}".format(i)
+        add_table_in_database(
+            database,
+            epoch,
+            num_layers,
+            state_size,
+            chosen_cell_type,
+            dropout_keep_prob,
+            batch_size,
+            saving_directory,
+            table_name
+        )
         # ----------------------------------------------------------------------
         # Training and testing.
         # ----------------------------------------------------------------------
@@ -186,6 +246,8 @@ if __name__ == "__main__":
         train_network(
             g_train,
             epoch,
+            database,
+            table_name,
             num_steps=timestep,
             batch_size=batch_size
         )
