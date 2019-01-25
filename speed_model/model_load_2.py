@@ -13,14 +13,19 @@ import tensorflow as tf
 tf.logging.set_verbosity(tf.logging.ERROR)
 
 
-def test_model():
+def test_model(save_dir):
+    """
+    Test the effectiveness of the built model without building the structure of 
+    the model again.
+    """
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph('train_error_1_10/sample.ckpt.meta')
-        saver.restore(sess, tf.train.latest_checkpoint('train_error_1_10'))
+        saver = tf.train.import_meta_graph(save_dir + "/sample.ckpt.meta")
+        saver.restore(sess, tf.train.latest_checkpoint(save_dir))
         graph = tf.get_default_graph()
         batch_size = graph.get_tensor_by_name("batch_size:0")
         dropout_keep_prob = graph.get_tensor_by_name("dropout_keep_prob:0")
         x = graph.get_tensor_by_name("X:0")
+        
         for _ in range(10):
             sample_test = random.randint(0, len_test)
             feed_dict_sample = {batch_size: 1, dropout_keep_prob: 1, x: [X_test[sample_test]]}
@@ -32,17 +37,19 @@ def test_model():
 
 
 if __name__ == "__main__":
-    with open("../pogo_data_generation/speed_model_stand.pickle", "rb") as pickle_save:
+    model_pickle = "../pogo_data_generation/speed_model_stand.pickle"
+    with open(model_pickle, "rb") as pickle_save:
         X_train, X_test, y_train, y_test = pickle.load(pickle_save)
 
     batch_size = 1
     timestep = len(X_test[0])
     len_test = len(X_test)
     y_test = [[y / 10000] for y in y_test]
-    network_type = ["LSTM", "GRU", "LSTM_LN", "customized_layer_norm_LSTM"]
+    network_type = ["LSTM", "GRU"]
     
-    for i in range(4):
+    for i in range(2):
         if i != 0:
             continue
         chosen_network_type = network_type[i]
-        test_model()
+        save_dir = "1_25_test_error_10"
+        test_model(save_dir)

@@ -35,7 +35,7 @@ def main():
     create_database(database)
     cell_type = ["LSTM", "GRU"]
 
-    for i in range(4):
+    for i in range(2):
         if i != 0:
             continue
         chosen_cell_type = cell_type[i]
@@ -49,7 +49,7 @@ def main():
             chosen_cell_type,
             dropout_keep_prob,
             batch_size,
-            saving_directory,
+            save_dir,
             table_name
         )
         # ----------------------------------------------------------------------
@@ -87,7 +87,7 @@ def create_database(database):
         "cell_type VARCHAR(255), "
         "dropout_keep_prob real, "
         "batch_size INT, "
-        "saving_directory VARCHAR(255), "
+        "save_dir VARCHAR(255), "
         "table_name VARCHAR(255))"
     )
 
@@ -103,7 +103,7 @@ def add_table_in_database(
         cell_type,
         dropout_keep_prob,
         batch_size,
-        saving_directory,
+        save_dir,
         table_name
     ):
     """
@@ -114,7 +114,7 @@ def add_table_in_database(
     cursor = db_connection.cursor()
     cursor.execute(
         "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (epoch, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, saving_directory, table_name)
+        (epoch, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, save_dir, table_name)
     )
     cursor.execute(
         "CREATE TABLE {} (train_error real, test_error real)"
@@ -281,14 +281,14 @@ def train_network(
                         feed_dict_train[model["learning_rate"]] = 1e-4
                         learning_rate_change = True
 
-                    if test_error < 0.1 and not os.path.isdir(saving_directory + "10"):
-                        model["saver"].save(sess, saving_directory + "10/model.ckpt")
-                    elif test_error < 0.09 and not os.path.isdir(saving_directory + "9"):
-                        model["saver"].save(sess, saving_directory + "9/model.ckpt")
-                    elif test_error < 0.08 and not os.path.isdir(saving_directory + "8"):
-                        model["saver"].save(sess, saving_directory + "8/model.ckpt")
-                    elif test_error < 0.07 and not os.path.isdir(saving_directory + "7"):
-                        model["saver"].save(sess, saving_directory + "5/model.ckpt")
+                    if test_error < 0.1 and not os.path.isdir(save_dir + "10"):
+                        model["saver"].save(sess, save_dir + "10/model.ckpt")
+                    elif test_error < 0.09 and not os.path.isdir(save_dir + "9"):
+                        model["saver"].save(sess, save_dir + "9/model.ckpt")
+                    elif test_error < 0.08 and not os.path.isdir(save_dir + "8"):
+                        model["saver"].save(sess, save_dir + "8/model.ckpt")
+                    elif test_error < 0.07 and not os.path.isdir(save_dir + "7"):
+                        model["saver"].save(sess, save_dir + "5/model.ckpt")
 
             db_connection.commit()
 
@@ -308,6 +308,6 @@ if __name__ == "__main__":
     timestep = len(X_train[0])
     len_test = len(X_test)
     y_test = [[y / 10000] for y in y_test]
-    saving_directory = "1_25_test_error_"
+    save_dir = "1_25_test_error_"
 
     main()
