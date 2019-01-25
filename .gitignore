@@ -3,6 +3,7 @@ pogo_data_generation/__pycache__
 pogo_data_generation/pogoMatlab
 pogo_data_generation/pogo_gen
 pogo_data_generation/pogo_circle.db
+pogo_data_generation/pogo_circle_stand.db
 pogo_data_generation/pogo_manual.pdf
 pogo_data_generation/get_hist_field_pogo.log
 pogo_data_generation/cartimagesc.m
@@ -13,3 +14,4 @@ pogo_data_generation/viewHist.m
 pogo_data_generation/view_hist.m
 pogo_data_generation/pogo_get_hist_field.log
 pogo_data_generation/speed_model.pickle
+pogo_data_generation/speed_model_stand.pickle
