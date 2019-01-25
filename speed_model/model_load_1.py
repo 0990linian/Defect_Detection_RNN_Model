@@ -8,19 +8,19 @@ import random
 import pickle
 import numpy as np
 import tensorflow as tf
-from speed_model import multilayer_lstm_graph_dynamic_rnn
+from speed_model import rnn_model
 
 # Disable tensorflow warning about deprecated commands.
 tf.logging.set_verbosity(tf.logging.ERROR)
 
 
-def test_model(g):
+def test_model(model):
 	with tf.Session() as sess:
-		g["saver"].restore(sess, "train_error_1_10/sample.ckpt")
+		model["saver"].restore(sess, "1_25_test_error_9/model.ckpt")
 		for _ in range(10):
 			sample_test = random.randint(0, len_test)
-			feed_dict_sample = {g["batch_size"]: 1, g["dropout_keep_prob"]: 1, g["x"]: [X_test[sample_test]]}
-			logit = sess.run(g["logits"], feed_dict_sample)
+			feed_dict_sample = {model["batch_size"]: 1, model["dropout_keep_prob"]: 1, model["x"]: [X_test[sample_test]]}
+			logit = sess.run(model["logits"], feed_dict_sample)
 			print(logit[0][0])
 			print(y_test[sample_test][0])
 			print()
@@ -44,10 +44,8 @@ if __name__ == "__main__":
         # ----------------------------------------------------------------------
         # Training and testing.
         # ----------------------------------------------------------------------
-        g_test = multilayer_lstm_graph_dynamic_rnn(
-            network_type=chosen_network_type,
+        model_strcuture = rnn_model(
+            cell_type=chosen_network_type,
             num_steps=timestep
         )
-        test_model(
-            g_test
-        )
+        test_model(model_strcuture)
