@@ -40,35 +40,22 @@ def main():
             continue
         chosen_cell_type = cell_type[i]
 
-        table_name = "run_1_25_00_{}".format(i)
+        table_name = "run_1_25_00{}".format(i)
         add_table_in_database(
-            database,
-            epoch,
-            num_layers,
-            state_size,
             chosen_cell_type,
             dropout_keep_prob,
             batch_size,
-            save_dir,
             table_name
         )
         # ----------------------------------------------------------------------
         # Model building and training.
         # ----------------------------------------------------------------------
         speed_model = rnn_model(
-            state_size=state_size,
-            cell_type=chosen_cell_type,
-            num_steps=timestep,
-            num_layers=num_layers
+            cell_type=chosen_cell_type
         )
         train_network(
             speed_model,
-            epoch,
-            database,
             table_name,
-            X_train,
-            y_train,
-            num_steps=timestep,
             batch_size=batch_size
         )
 
@@ -81,7 +68,7 @@ def create_database(database):
     cursor = db_connection.cursor()
     cursor.execute(
         "CREATE TABLE IF NOT EXISTS table_list ("
-        "epoch INT, "
+        "num_epochs INT, "
         "num_layers INT, "
         "state_size INT, "
         "cell_type VARCHAR(255), "
@@ -96,14 +83,9 @@ def create_database(database):
 
 
 def add_table_in_database(
-        database,
-        epoch,
-        num_layers,
-        state_size,
         cell_type,
         dropout_keep_prob,
         batch_size,
-        save_dir,
         table_name
     ):
     """
@@ -114,7 +96,7 @@ def add_table_in_database(
     cursor = db_connection.cursor()
     cursor.execute(
         "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (epoch, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, save_dir, table_name)
+        (num_epochs, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, save_dir, table_name)
     )
     cursor.execute(
         "CREATE TABLE {} (train_error real, test_error real)"
@@ -123,14 +105,7 @@ def add_table_in_database(
     db_connection.commit()
 
 
-def rnn_model(
-        state_size=100,
-        num_inputs=3,
-        num_classes=1,
-        num_steps=500,
-        num_layers=1,
-        cell_type="LSTM"
-    ):
+def rnn_model(cell_type="LSTM"):
     """
     Build the RNN model for the speed prediction task.
 
@@ -209,13 +184,8 @@ def fc_layer(input, num_input, num_output, scope_name):
 
 
 def train_network(
-        model, 
-        num_epochs,
-        database,
+        model,
         table_name,
-        X_train,
-        y_train,
-        num_steps=200, 
         batch_size=32
     ):
     """
@@ -234,7 +204,6 @@ def train_network(
     db_connection = sqlite3.connect(database)
     cursor = db_connection.cursor()
     
-    iter_num = 5
     learning_rate_change = False
     
     feed_dict_train = {
@@ -300,12 +269,15 @@ if __name__ == "__main__":
         X_train, X_test, y_train, y_test = pickle.load(pickle_save)
 
     database = "speed_model_train.db"
-    epoch = 5
+    iter_num = 30
+    num_epochs = 5
     batch_size = 1
     num_layers = 1
+    num_inputs = 3
+    num_classes = 1
     state_size = 100
     dropout_keep_prob = 1
-    timestep = len(X_train[0])
+    num_steps = len(X_train[0])
     len_test = len(X_test)
     y_test = [[y / 10000] for y in y_test]
     save_dir = "1_25_test_error_"
