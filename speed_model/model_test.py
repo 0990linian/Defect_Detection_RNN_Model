@@ -1,14 +1,16 @@
-#-------------------------------------------------------------------------------
-# Disable AVX warning.
+################################################################################
+# This script aims to load the trained model and test the effectiveness using 
+# testing data.
+################################################################################
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-# ------------------------------------------------------------------------------
 import sys
 import random
 import pickle
 import numpy as np
 import tensorflow as tf
 
+# Disable AVX warning.
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # Disable tensorflow warning about deprecated commands.
 tf.logging.set_verbosity(tf.logging.ERROR)
 
@@ -19,7 +21,7 @@ def test_model(save_dir):
     the model again.
     """
     with tf.Session() as sess:
-        saver = tf.train.import_meta_graph(save_dir + "/sample.ckpt.meta")
+        saver = tf.train.import_meta_graph(save_dir + "/model.ckpt.meta")
         saver.restore(sess, tf.train.latest_checkpoint(save_dir))
         graph = tf.get_default_graph()
         batch_size = graph.get_tensor_by_name("batch_size:0")
@@ -27,7 +29,7 @@ def test_model(save_dir):
         x = graph.get_tensor_by_name("X:0")
         
         for _ in range(10):
-            sample_test = random.randint(0, len_test)
+            sample_test = random.randint(0, len_test - 1)
             feed_dict_sample = {batch_size: 1, dropout_keep_prob: 1, x: [X_test[sample_test]]}
             logits = graph.get_tensor_by_name("logits:0")
             prediction = sess.run(logits, feed_dict_sample)
@@ -51,5 +53,5 @@ if __name__ == "__main__":
         if i != 0:
             continue
         chosen_network_type = network_type[i]
-        save_dir = "1_25_test_error_10"
+        save_dir = "1_25_01_test_error_9"
         test_model(save_dir)
