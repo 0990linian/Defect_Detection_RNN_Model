@@ -25,35 +25,16 @@ def main():
         - Add table for specific training process to record training data.
         - Build the RNN model to predict speed in inclusion.
         - Train the model on provided dataset.
-    
-    Args:
-        None
-
-    Returns:
-        None
     """
-    create_database(database)
+    tf.reset_default_graph()
+    create_database()
+    add_table_in_database()
 
-    add_table_in_database(
-        cell_type,
-        dropout_keep_prob,
-        batch_size,
-        save_dir
-    )
-    # ----------------------------------------------------------------------
-    # Model building and training.
-    # ----------------------------------------------------------------------
-    speed_model = rnn_model(
-        cell_type=cell_type
-    )
-    train_network(
-        speed_model,
-        save_dir,
-        batch_size=batch_size
-    )
+    speed_model = rnn_model()
+    train_network(speed_model)
 
 
-def create_database(database):
+def create_database():
     """
     Create speed model database and the high level table.
     """
@@ -74,12 +55,7 @@ def create_database(database):
     return db_connection
 
 
-def add_table_in_database(
-        cell_type,
-        dropout_keep_prob,
-        batch_size,
-        table_name
-    ):
+def add_table_in_database():
     """
     Add a table into database to record training process data through the 
     training stage.
@@ -88,16 +64,16 @@ def add_table_in_database(
     cursor = db_connection.cursor()
     cursor.execute(
         "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (num_epochs, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, table_name)
+        (num_epochs, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, save_dir)
     )
     cursor.execute(
-        "CREATE TABLE {} (train_error real, test_error real)"
-        .format(table_name)
+        "CREATE TABLE {} (train_error real, test_error real, cost real)"
+        .format(save_dir)
     )
     db_connection.commit()
 
 
-def rnn_model(cell_type="LSTM"):
+def rnn_model():
     """
     Build the RNN model for the speed prediction task.
 
@@ -147,6 +123,7 @@ def rnn_model(cell_type="LSTM"):
     logits = tf.identity(fc_output_2, name="logits")
 
     cost = tf.reduce_mean(tf.square(logits - y))
+    # optional: GradientDescentOptimizer
     train_step = tf.train.AdamOptimizer(learning_rate).minimize(cost)
     error = tf.reduce_mean(abs(tf.truediv(logits, y) - 1), name="error")
     saver = tf.train.Saver()
@@ -154,9 +131,9 @@ def rnn_model(cell_type="LSTM"):
     return dict(
         x = x,
         y = y,
+        cost = cost,
         saver = saver,
         error = error,
-        logits = logits,
         batch_size = batch_size,
         train_step = train_step,
         learning_rate = learning_rate,
@@ -166,7 +143,17 @@ def rnn_model(cell_type="LSTM"):
 
 def fc_layer(input, num_input, num_output, scope_name):
     """
-    Define a fully connected layer.
+    Define a fully-connected layer.
+
+    Args:
+        input: The input data to this fully-connected layer.
+        num_input: The number of nodes in the previous layer.
+        num_output: The number of nodes in the current layer.
+        scope_name: The scope name for this layer.  The adding of this scope is 
+            for the easy management when visualizing on tensorboard in future.
+
+    Returns:
+        The result data passed through this layer.
     """
     with tf.variable_scope(scope_name):
         W = tf.Variable(tf.random_normal([num_input, num_output]), name="W")
@@ -175,11 +162,7 @@ def fc_layer(input, num_input, num_output, scope_name):
     return z
 
 
-def train_network(
-        model,
-        table_name,
-        batch_size=32
-    ):
+def train_network(model):
     """
     Train the built RNN model.
 
@@ -192,6 +175,9 @@ def train_network(
             are shown to provide an insight into the training process.  These 
             data is also recorded in the database.
         - Save the model when test error is below 10%, 9%, 8% and 7%.
+
+    Args:
+        model: The built RNN model structure.
     """
     db_connection = sqlite3.connect(database)
     cursor = db_connection.cursor()
@@ -212,17 +198,18 @@ def train_network(
         sess.run(tf.initialize_all_variables())
         
         for epoch_count in range(num_epochs):
-            train_error = 0
-        
+            train_error, cost = 0, 0
+
             for index, (X, Y) in enumerate(zip(X_train, y_train), 1):
                 feed_dict_train[model['x']] = [X]
                 feed_dict_train[model['y']] = [[Y / 10000]]
-                _, train_error_ = \
+                _, train_error_, cost_ = \
                     sess.run(
-                        [model["train_step"], model["error"]],
+                        [model["train_step"], model["error"], model["cost"]],
                         feed_dict_train
                     )
                 train_error += train_error_
+                cost += cost_
 
                 if index % iter_num == 0:
                     feed_dict_test[model["x"]] = X_test
@@ -231,11 +218,12 @@ def train_network(
                     print("Training error: {}".format(train_error / iter_num))
                     print("Testing error: {}\n".format(test_error))
                     cursor.execute(
-                        "INSERT INTO {} VALUES (?, ?)".format(table_name), 
-                        (train_error / iter_num, float(test_error))
+                        "INSERT INTO {} VALUES (?, ?, ?)".format(save_dir), 
+                        (train_error / iter_num, float(test_error), cost / iter_num)
                     )
                     db_connection.commit()
                     train_error = 0
+                    cost = 0
                     
                     if not learning_rate_change and test_error < 0.15:
                         print("learning_rate changed to 1e-4")
@@ -253,6 +241,8 @@ def train_network(
 
             db_connection.commit()
 
+        model["saver"].save(sess, save_dir + "_final/model.ckpt")
+
 
 if __name__ == "__main__":
     # Load data and define global variables.
@@ -260,7 +250,6 @@ if __name__ == "__main__":
     with open(model_pickle, "rb") as pickle_save:
         X_train, X_test, y_train, y_test = pickle.load(pickle_save)
 
-    database = "speed_model_train.db"
     iter_num = 30
     num_epochs = 5
     batch_size = 1
@@ -270,11 +259,10 @@ if __name__ == "__main__":
     dropout_keep_prob = 1
     num_steps = len(X_train[0])
     len_test = len(X_test)
+    database = "speed_model_train.db"
     y_test = [[y / 10000] for y in y_test]
-    save_counter = 2
-
-    for state_size in [50, 100, 200]:
-        for cell_type in ["LSTM", "GRU"]:
-            save_dir = "test_error_1_25_0" + str(save_counter)
-            main()
-            save_counter += 1
+    state_size = 50
+    cell_type = "GRU"
+    save_dir = "test_error_1_25_12"
+    
+    main()

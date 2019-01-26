@@ -53,5 +53,5 @@ if __name__ == "__main__":
         if i != 0:
             continue
         chosen_network_type = network_type[i]
-        save_dir = "1_25_01_test_error_9"
+        save_dir = "test_error_1_25_06_10"
         test_model(save_dir)
