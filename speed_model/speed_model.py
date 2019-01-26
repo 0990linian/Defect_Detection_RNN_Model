@@ -73,12 +73,51 @@ def add_table_in_database():
     db_connection.commit()
 
 
+def reshape_data_for_batch(input_data_list, batch_size):
+    
+    def form_batch(input_data):
+        result_data = []
+        batch_data = []
+        for index, one_batch in enumerate(input_data, 1):
+            batch_data.append(one_batch)
+            if index % batch_size == 0:
+                result_data.append(batch_data[:])
+                batch_data.clear()
+        return result_data
+
+    result_data_list = []
+    for data in input_data_list:
+        result_data_list.append(form_batch(data))
+    return result_data_list
+
+
+def fc_layer(input, num_input, num_output, scope_name):
+    """
+    Define a fully-connected layer.
+
+    Args:
+        input: The input data to this fully-connected layer.
+        num_input: The number of nodes in the previous layer.
+        num_output: The number of nodes in the current layer.
+        scope_name: The scope name for this layer.  The adding of this scope is 
+            for the easy management when visualizing on tensorboard in future.
+
+    Returns:
+        The result data passed through this layer.
+    """
+    with tf.variable_scope(scope_name):
+        W = tf.Variable(tf.random_normal([num_input, num_output]), name="W")
+        b = tf.Variable(tf.random_normal([num_output]), name="b")
+        z = tf.add(tf.matmul(input, W), b, name="z")
+    return z
+
+
 def rnn_model():
     """
-    Build the RNN model for the speed prediction task.
+    Build the multi-layer RNN model for the speed prediction task.
 
     Description:
-        Build the RNN model based on different input cell_types.  
+        Build the multi-layer RNN model based on different input cell_types.  
             Choosable options are LSTM and GRU.
         batch_size, learning_rate and dropout_keep_prob are set as 
             placeholders, so different values could be input during training and 
@@ -93,11 +132,20 @@ def rnn_model():
             - dropout_keep_prob: dropout could be applied during training, but
                 it must be 1 during testing.
     """
+    # x: [batch_size, num_steps, num_inputs]
+    # y: [batch_size, num_classes]
     x = tf.placeholder(tf.float32, [None, num_steps, num_inputs], name='X')
     y = tf.placeholder(tf.float32, [None, num_classes], name='Y')
     batch_size = tf.placeholder(tf.int32, [], name='batch_size')
     learning_rate = tf.placeholder(tf.float32, [], name='learning_rate')
     dropout_keep_prob = tf.placeholder(tf.float32, [], name='dropout_keep_prob')
+
+    # x_fc_input: [batch_size * num_steps, num_inputs]
+    x_fc_input = tf.reshape(x, [-1, num_inputs])
+    # fc_output_0: [batch_size * num_steps, state_size]
+    fc_output_0 = tf.nn.tanh(fc_layer(x_fc_input, num_inputs, state_size, "fc_0"))
+    # x_rnn_input: [batch_size, num_steps, state_size]
+    x_rnn_input = tf.reshape(fc_output_0, [-1, num_steps, state_size])
 
     if cell_type == "LSTM":
         cell = tf.nn.rnn_cell.LSTMCell(state_size, state_is_tuple=True)
@@ -111,7 +159,7 @@ def rnn_model():
 
     # rnn_outputs: [batch_size, num_steps, state_size].
     # final_state: [batch_size, hidden_layers * state_size].
-    rnn_outputs, final_state = tf.nn.dynamic_rnn(multi_cell, x, initial_state=init_state)
+    rnn_outputs, final_state = tf.nn.dynamic_rnn(multi_cell, x_rnn_input, initial_state=init_state)
     
     # Unstack the rnn_outputs to list [num_steps * [batch_size, state_size]].
     # Get the last element in the list, that is the last output.
@@ -141,27 +189,6 @@ def rnn_model():
     )
 
 
-def fc_layer(input, num_input, num_output, scope_name):
-    """
-    Define a fully-connected layer.
-
-    Args:
-        input: The input data to this fully-connected layer.
-        num_input: The number of nodes in the previous layer.
-        num_output: The number of nodes in the current layer.
-        scope_name: The scope name for this layer.  The adding of this scope is 
-            for the easy management when visualizing on tensorboard in future.
-
-    Returns:
-        The result data passed through this layer.
-    """
-    with tf.variable_scope(scope_name):
-        W = tf.Variable(tf.random_normal([num_input, num_output]), name="W")
-        b = tf.Variable(tf.random_normal([num_output]), name="b")
-        z = tf.add(tf.matmul(input, W), b, name="z")
-    return z
-
-
 def train_network(model):
     """
     Train the built RNN model.
@@ -174,7 +201,8 @@ def train_network(model):
         - For every certain number of iterations, the training and testing error 
             are shown to provide an insight into the training process.  These 
             data is also recorded in the database.
-        - Save the model when test error is below 10%, 9%, 8% and 7%.
+        - Save the model parameters when test error reaches the minimum value 
+            and when the training process is complete.
 
     Args:
         model: The built RNN model structure.
@@ -182,6 +210,7 @@ def train_network(model):
     db_connection = sqlite3.connect(database)
     cursor = db_connection.cursor()
     
+    test_error_min = 1
     learning_rate_change = False
     
     feed_dict_train = {
@@ -201,8 +230,8 @@ def train_network(model):
             train_error, cost = 0, 0
 
             for index, (X, Y) in enumerate(zip(X_train, y_train), 1):
-                feed_dict_train[model['x']] = [X]
-                feed_dict_train[model['y']] = [[Y / 10000]]
+                feed_dict_train[model['x']] = X
+                feed_dict_train[model['y']] = Y
                 _, train_error_, cost_ = \
                     sess.run(
                         [model["train_step"], model["error"], model["cost"]],
@@ -222,22 +251,16 @@ def train_network(model):
                         (train_error / iter_num, float(test_error), cost / iter_num)
                     )
                     db_connection.commit()
-                    train_error = 0
-                    cost = 0
+                    train_error, cost = 0, 0
                     
                     if not learning_rate_change and test_error < 0.15:
                         print("learning_rate changed to 1e-4")
                         feed_dict_train[model["learning_rate"]] = 1e-4
                         learning_rate_change = True
 
-                    if test_error < 0.1 and not os.path.isdir(save_dir + "_10"):
-                        model["saver"].save(sess, save_dir + "_10/model.ckpt")
-                    elif test_error < 0.09 and not os.path.isdir(save_dir + "_9"):
-                        model["saver"].save(sess, save_dir + "_9/model.ckpt")
-                    elif test_error < 0.08 and not os.path.isdir(save_dir + "_8"):
-                        model["saver"].save(sess, save_dir + "_8/model.ckpt")
-                    elif test_error < 0.07 and not os.path.isdir(save_dir + "_7"):
-                        model["saver"].save(sess, save_dir + "_7/model.ckpt")
+                    if test_error < test_error_min:
+                        model["saver"].save(sess, save_dir + "_min/model.ckpt")
+                        test_error_min = test_error
 
             db_connection.commit()
 
@@ -252,17 +275,19 @@ if __name__ == "__main__":
 
     iter_num = 30
     num_epochs = 5
-    batch_size = 1
-    num_layers = 1
+    batch_size = 3
+    num_layers = 3
     num_inputs = 3
     num_classes = 1
     dropout_keep_prob = 1
     num_steps = len(X_train[0])
     len_test = len(X_test)
     database = "speed_model_train.db"
+    y_train = [[y / 10000] for y in y_train]
     y_test = [[y / 10000] for y in y_test]
-    state_size = 50
+    state_size = 20
     cell_type = "GRU"
-    save_dir = "test_error_1_25_12"
+    save_dir = "test_error_1_26_7"
+    [X_train, y_train] = reshape_data_for_batch([X_train, y_train], batch_size)
     
     main()
