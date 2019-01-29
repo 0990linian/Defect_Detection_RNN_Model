@@ -16,7 +16,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 tf.logging.set_verbosity(tf.logging.ERROR)
 
 
-def main():
+def main(prev_sess=None):
     """
     Main function of this script
 
@@ -31,7 +31,10 @@ def main():
     add_table_in_database()
 
     speed_model = rnn_model()
-    train_network(speed_model)
+    if prev_sess is None:
+        train_network(speed_model)
+    else:
+        continue_training(speed_model, prev_sess)
 
 
 def create_database():
@@ -149,10 +152,10 @@ def rnn_model():
 
     if cell_type == "LSTM":
         cell = tf.nn.rnn_cell.LSTMCell(state_size, state_is_tuple=True)
-        # cell = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=dropout_keep_prob)
+        cell = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=dropout_keep_prob)
     elif cell_type == "GRU":
         cell = tf.nn.rnn_cell.GRUCell(state_size)
-        # cell = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=dropout_keep_prob)
+        cell = tf.nn.rnn_cell.DropoutWrapper(cell, input_keep_prob=dropout_keep_prob)
     
     multi_cell = tf.nn.rnn_cell.MultiRNNCell([cell] * num_layers, state_is_tuple=True)
     init_state = multi_cell.zero_state(batch_size, dtype=tf.float32)
@@ -171,7 +174,6 @@ def rnn_model():
     logits = tf.identity(fc_output_2, name="logits")
 
     cost = tf.reduce_mean(tf.square(logits - y))
-    # optional: GradientDescentOptimizer
     train_step = tf.train.AdamOptimizer(learning_rate).minimize(cost)
     error = tf.reduce_mean(abs(tf.truediv(logits, y) - 1), name="error")
     saver = tf.train.Saver()
@@ -189,7 +191,7 @@ def rnn_model():
     )
 
 
-def train_network(model):
+def train_network(model, prev_sess=None):
     """
     Train the built RNN model.
 
@@ -203,6 +205,7 @@ def train_network(model):
             data is also recorded in the database.
         - Save the model parameters when test error reaches the minimum value 
             and when the training process is complete.
+        - Enable continue training, allowing training from a saved checkpoint.
 
     Args:
         model: The built RNN model structure.
@@ -216,7 +219,7 @@ def train_network(model):
     feed_dict_train = {
         model["batch_size"]: batch_size,
         model["learning_rate"]: 1e-3,
-        model["dropout_keep_prob"]: 0.8
+        model["dropout_keep_prob"]: dropout_keep_prob
     }
     feed_dict_test = {
         model["batch_size"]: len_test,
@@ -224,7 +227,10 @@ def train_network(model):
     }
 
     with tf.Session() as sess:
-        sess.run(tf.initialize_all_variables())
+        if prev_sess is None:
+            sess.run(tf.initialize_all_variables())
+        else:
+            model["saver"].restore(sess, tf.train.latest_checkpoint(prev_sess))
         
         for epoch_count in range(num_epochs):
             train_error, cost = 0, 0
@@ -274,12 +280,12 @@ if __name__ == "__main__":
         X_train, X_test, y_train, y_test = pickle.load(pickle_save)
 
     iter_num = 30
-    num_epochs = 5
+    num_epochs = 20
     batch_size = 3
     num_layers = 3
     num_inputs = 3
     num_classes = 1
-    dropout_keep_prob = 1
+    dropout_keep_prob = 0.8
     num_steps = len(X_train[0])
     len_test = len(X_test)
     database = "speed_model_train.db"
@@ -287,7 +293,10 @@ if __name__ == "__main__":
     y_test = [[y / 10000] for y in y_test]
     state_size = 20
     cell_type = "GRU"
-    save_dir = "test_error_1_26_7"
+    save_dir = "test_error_1_29_10"
     [X_train, y_train] = reshape_data_for_batch([X_train, y_train], batch_size)
     
-    main()
+    prev_sess = "test_error_1_28_10_final"
+    # prev_sess = None
+
+    main(prev_sess)
