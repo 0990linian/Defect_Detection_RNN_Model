@@ -29,7 +29,7 @@ logger.addHandler(file_handler)
 logger.addHandler(stream_handdler)
 
 
-def pogo_get_hist_field(pogo_inp_name):
+def pogo_get_hist_field(pogo_name):
 	"""
 	This function aims to get history and field files run from Pogo on the 
 	remote machine while hiding the relative long system output from Pogo 
@@ -61,18 +61,17 @@ def pogo_get_hist_field(pogo_inp_name):
 			really matters.
 
 	Args:
-		pogo_inp_name: The name of pogo-inp file that would run on the remote 
+		pogo_inp_name: The name of the pogo file that would run on the remote 
 			machine.
 	
 	Returns:
 		True if all command calls have no error, False otherwise.
 	"""
-	pogo_field_name = pogo_inp_name[:-3] + "field"
-	pogo_hist_name = pogo_inp_name[:-3] + "hist"
-	
+	pogo_inp_name = pogo_name + ".pogo-inp"
+
 	cp_inp = remote_command_execute(
 		"scp pogo_gen/{} nl2314@crunch5.me.ic.ac.uk:~/fyp".format(pogo_inp_name),
-		"copying pogo-inp file {} to remote machine...".format(pogo_inp_name)
+		"copying pogo-inp file {} to remote machine...".format(pogo_name)
 	)
 
 	pogo_cmd = remote_command_execute(
@@ -81,23 +80,23 @@ def pogo_get_hist_field(pogo_inp_name):
 	)
 
 	cp_hist = remote_command_execute(
-		"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format(pogo_hist_name),
-		"copying pogo-hist file {} back to local machine...".format(pogo_hist_name)
+		"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format(pogo_name + "-*.pogo-hist"),
+		"copying pogo-hist file {} back to local machine...".format(pogo_name)
 	)
 
 	# cp_field = remote_command_execute(
-	# 	"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format(pogo_field_name),
-	# 	"copying pogo-field file {} back to local machine...".format(pogo_field_name)
+	# 	"scp nl2314@crunch5.me.ic.ac.uk:~/fyp/{} pogo_gen".format("*"),
+	# 	"copying pogo-field file {} back to local machine...".format(pogo_name)
 	# )
 
 	rm_pogo = remote_command_execute(
-		"ssh -T nl2314@crunch5.me.ic.ac.uk \"rm ~/fyp/{0}*\"".format(pogo_inp_name[:-3]),
-		"removing pogo-related files {} on the remote machine...".format(pogo_inp_name[:-9])
+		"ssh -T nl2314@crunch5.me.ic.ac.uk \"rm ~/fyp/*\"",
+		"removing pogo-related files {} on the remote machine...".format(pogo_name)
 	)
 
 	command_result = cp_inp and pogo_cmd and cp_hist and rm_pogo
 	print("{} pogo process {}.".format(
-		pogo_inp_name[:-9], 
+		pogo_name, 
 		"success" if command_result else "fail")
 	)
 
@@ -148,3 +147,7 @@ def remote_command_execute(command, process_description):
 			.format(process_description[:-3], command_err)
 		)
 		return False
+
+
+if __name__ == "__main__":
+	pogo_get_hist_field("crack")
