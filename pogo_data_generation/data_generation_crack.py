@@ -17,20 +17,20 @@ def main():
 		- Define name of the database.
 		- Generate data and label.
 	"""
-	start_len, end_len = 102, 300
+	start_len, end_len = 122, 300
 	start_thick, end_thick = 10, 80
 	start_rot, end_rot = 0, 1
 	database = "pogo_crack.db"
 	db_connection = create_database(database, False)
 	matlab_engine = matlab.engine.start_matlab()
 	generate_pogo_data(
-		matlab_engine, 
-		db_connection, 
-		start_len, 
-		end_len, 
-		start_thick, 
-		end_thick, 
-		start_rot, 
+		matlab_engine,
+		db_connection,
+		start_len,
+		end_len,
+		start_thick,
+		end_thick,
+		start_rot,
 		end_rot
 	)
 

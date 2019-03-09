@@ -31,10 +31,7 @@ def main(prev_sess=None):
     add_table_in_database()
 
     speed_model = rnn_model()
-    if prev_sess is None:
-        train_network(speed_model)
-    else:
-        continue_training(speed_model, prev_sess)
+    train_network(speed_model, prev_sess)
 
 
 def create_database():
@@ -275,14 +272,14 @@ def train_network(model, prev_sess=None):
 
 if __name__ == "__main__":
     # Load data and define global variables.
-    model_pickle = "../pogo_data_generation/speed_model_stand.pickle"
+    model_pickle = "speed_model_stand.pickle"
     with open(model_pickle, "rb") as pickle_save:
         X_train, X_test, y_train, y_test = pickle.load(pickle_save)
 
     iter_num = 30
-    num_epochs = 20
-    batch_size = 3
-    num_layers = 3
+    num_epochs = 60
+    batch_size = 5
+    num_layers = 5
     num_inputs = 3
     num_classes = 1
     dropout_keep_prob = 0.8
@@ -291,12 +288,13 @@ if __name__ == "__main__":
     database = "speed_model_train.db"
     y_train = [[y / 10000] for y in y_train]
     y_test = [[y / 10000] for y in y_test]
-    state_size = 20
-    cell_type = "GRU"
-    save_dir = "test_error_1_29_10"
+    state_size = 128
     [X_train, y_train] = reshape_data_for_batch([X_train, y_train], batch_size)
     
-    prev_sess = "test_error_1_28_10_final"
-    # prev_sess = None
+    for cell_type in ["LSTM", "GRU"]:
+        save_dir = "result_" + cell_type
 
-    main(prev_sess)
+        # prev_sess = "test_error_1_28_10_final"
+        prev_sess = None
+
+        main(prev_sess)

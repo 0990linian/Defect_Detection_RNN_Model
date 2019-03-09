@@ -7,5 +7,8 @@ pogo_data_generation/*.log
 pogo_data_generation/*.m
 pogo_data_generation/*.pickle
 pogo_data_generation/pogo_manual.pdf
+speed_model/results
+speed_model/cx1_result
 speed_model/*.db
 speed_model/*.pickle
+cx1_command

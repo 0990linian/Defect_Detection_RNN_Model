@@ -14,6 +14,7 @@ def main():
 	
 	for file in os.listdir("pogo_gen"):
 		pogo_name = file[:-4]
+		print(pogo_name)
 		pogo_info = re.search(r"crack_l(?P<length>\d+)_t(?P<thick>\d+)_r(?P<rot>\d+)", pogo_name)
 		cursor.execute(
 			"INSERT INTO crack_info "

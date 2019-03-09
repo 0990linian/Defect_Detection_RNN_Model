@@ -33,13 +33,13 @@ def test_model(save_dir):
             feed_dict_sample = {batch_size: 1, dropout_keep_prob: 1, x: [X_test[sample_test]]}
             logits = graph.get_tensor_by_name("logits:0")
             prediction = sess.run(logits, feed_dict_sample)
-            print(prediction[0][0])
-            print(y_test[sample_test][0])
+            print("Predicted: {}".format(prediction[0][0] * 10000))
+            print("Actual:    {}".format(y_test[sample_test][0] * 10000))
             print()
 
 
 if __name__ == "__main__":
-    model_pickle = "../pogo_data_generation/speed_model_stand.pickle"
+    model_pickle = "speed_model.pickle"
     with open(model_pickle, "rb") as pickle_save:
         X_train, X_test, y_train, y_test = pickle.load(pickle_save)
 
@@ -47,11 +47,6 @@ if __name__ == "__main__":
     timestep = len(X_test[0])
     len_test = len(X_test)
     y_test = [[y / 10000] for y in y_test]
-    network_type = ["LSTM", "GRU"]
-    
-    for i in range(2):
-        if i != 0:
-            continue
-        chosen_network_type = network_type[i]
-        save_dir = "test_error_1_25_06_10"
-        test_model(save_dir)
+    save_dir = "cx1/result_LSTM_min"
+
+    test_model(save_dir)
