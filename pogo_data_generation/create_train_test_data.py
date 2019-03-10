@@ -25,28 +25,30 @@ def create_training_testing_data(database):
 	Returns:
 		None.
 	"""
-	X, y = [], []
+	x, y = [], []
 	db_connection = sqlite3.connect(database)
-	cursor_speed = db_connection.cursor()
+	cursor_shape = db_connection.cursor()
 	cursor_data = db_connection.cursor()
 
-	cursor_speed.execute("SELECT * FROM inclusion_speed")
-	speed_info = cursor_speed.fetchone()
-	while speed_info:
-		(current_table, speed) = speed_info
-		cursor_data.execute("SELECT * FROM {}".format(current_table))
-		X.append(cursor_data.fetchall())
-		y.append(speed)
-		speed_info = cursor_speed.fetchone()
+	cursor_shape.execute("SELECT * FROM crack_info")
+	shape_info = cursor_shape.fetchone()
+	while shape_info:
+		(table_name, length, thickness, rotation) = shape_info
+		print(table_name)
+		cursor_data.execute("SELECT * FROM {}".format(table_name))
+		x.append(cursor_data.fetchall())
+		y.append([length, thickness])
+		shape_info = cursor_shape.fetchone()
 
-	X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+	x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
+	x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2)
 	
-	with open("speed_model_stand.pickle", "wb") as pickle_save:
-		pickle.dump([X_train, X_test, y_train, y_test], pickle_save)
+	with open("../shape_model/shape_model.pickle", "wb") as pickle_save:
+		pickle.dump([x_train, y_train, x_val, y_val, x_test, y_test], pickle_save)
 
 
 if __name__ == "__main__":
-	database = "pogo_circle_stand.db"
+	database = "pogo_crack.db"
 	create_training_testing_data(database)
 
 
