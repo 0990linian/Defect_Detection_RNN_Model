@@ -11,4 +11,7 @@ speed_model/results
 speed_model/cx1_result
 speed_model/*.db
 speed_model/*.pickle
+shape_model/*.db
+shape_model/*.pickle
+shape_model/tensorboard
 cx1_command

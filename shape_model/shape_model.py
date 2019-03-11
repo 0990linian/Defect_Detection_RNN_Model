@@ -34,6 +34,12 @@ def main(prev_sess=None):
     train_network(shape_model, prev_sess)
 
 
+def create_result_folder():
+    if "result" not in os.listdir():
+        os.mkdir("result")
+    return
+
+
 def create_database():
     """
     Create speed model database and the high level table.
@@ -276,11 +282,11 @@ def train_network(model, prev_sess=None):
         if prev_sess is None:
             sess.run(tf.initialize_all_variables())
             train_writer = tf.summary.FileWriter(
-                "tensorboard/{}_train".format(save_dir),
+                "tensorboard/{}/train".format(save_dir),
                 sess.graph
             )
             test_writer = tf.summary.FileWriter(
-                "tensorboard/{}_test".format(save_dir),
+                "tensorboard/{}/test".format(save_dir),
                 sess.graph
             )
         else:
@@ -324,18 +330,28 @@ def train_network(model, prev_sess=None):
                     db_connection.commit()
                     train_error, cost = 0, 0
                     
-                    # if not learning_rate_change and test_error < 0.15:
-                    #     print("learning_rate changed to 1e-4")
-                    #     feed_dict_train[model["learning_rate"]] = 1e-4
-                    #     learning_rate_change = True
+                    if not learning_rate_change and test_error < 0.4:
+                        print("learning_rate changed to 1e-4")
+                        feed_dict_train[model["learning_rate"]] = 1e-4
+                        learning_rate_change = True
 
-                    # if test_error < test_error_min:
-                    #     model["saver"].save(sess, save_dir + "_min/model.ckpt")
-                    #     test_error_min = test_error
+                    if test_error < test_error_min:
+                        model["saver"].save(
+                            sess, 
+                            os.path.join(
+                                "result", 
+                                save_dir + "_min", 
+                                "model.ckpt"
+                            )
+                        )
+                        test_error_min = test_error
 
             db_connection.commit()
 
-        # model["saver"].save(sess, save_dir + "_final/model.ckpt")
+        model["saver"].save(
+            sess, 
+            os.path.join("result", save_dir + "_final", "model.ckpt")
+        )
 
 
 if __name__ == "__main__":
@@ -345,24 +361,27 @@ if __name__ == "__main__":
         x_train, y_train, x_val, y_val, x_test, y_test = pickle.load(pickle_db)
 
     iter_num = 30
-    num_epochs = 2
     batch_size = 5
-    num_layers = 3
+    num_layers = 5
     num_inputs = 12
+    num_epochs = 50
+    state_size = 128
     num_classes = 2
-    activation_type = "tanh"
     dropout_keep_prob = 1
     num_steps = len(x_train[0])
     len_test = len(x_val)
     database = "shape_model.db"
     y_train = [[y[0] / 400, y[1] / 100] for y in y_train]
     y_val = [[y[0] / 400, y[1] / 100] for y in y_val]
-    state_size = 128
     [x_train, y_train] = reshape_data_for_batch([x_train, y_train], batch_size)
-    cell_type = "LSTM"
-    save_dir = "crack_03_10_13"
 
     # prev_sess = "test_error_1_28_10_final"
     prev_sess = None
 
-    main(prev_sess)
+    create_result_folder()
+    num = 10
+    for cell_type in ["LSTM", "GRU"]:
+        for activation_type in ["relu", "tanh", "leaky_relu"]:
+            save_dir = "crack_03_10_{}".format(num)
+            main(prev_sess)
+            num += 1
