@@ -284,11 +284,10 @@ def train_network(model, prev_sess=None):
                 feed_dict_train[model['x']] = X
                 feed_dict_train[model['y']] = Y
 
-                _, train_error_, cost_, summary_train = sess.run(
-                    [model["train_step"], model["error"], model["cost"], merged_summary],
+                _, train_error_, cost_, = sess.run(
+                    [model["train_step"], model["error"], model["cost"]],
                     feed_dict_train
                 )
-                train_writer.add_summary(summary_train, tb_counter)
                 train_error += train_error_
                 cost += cost_
                 tb_counter += 1
@@ -297,11 +296,7 @@ def train_network(model, prev_sess=None):
                     feed_dict_test[model["x"]] = x_val
                     feed_dict_test[model["y"]] = y_val
 
-                    test_error, summary_test = sess.run(
-                        [model["error"], merged_summary], 
-                        feed_dict_test
-                    )
-                    test_writer.add_summary(summary_test, tb_counter)
+                    test_error = sess.run(model["error"], feed_dict_test)
                     logits, y = sess.run([model["logits"], model["y"]], feed_dict_test)
                     
                     print("Training error: {}".format(train_error / iter_num))
