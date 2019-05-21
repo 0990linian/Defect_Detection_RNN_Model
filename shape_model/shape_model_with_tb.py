@@ -54,6 +54,7 @@ def create_database():
         "cell_type VARCHAR(255), "
         "dropout_keep_prob real, "
         "batch_size INT, "
+        "activation VARCHAR(255), "
         "table_name VARCHAR(255))"
     )
 
@@ -69,8 +70,8 @@ def add_table_in_database():
     db_connection = sqlite3.connect(database)
     cursor = db_connection.cursor()
     cursor.execute(
-        "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (num_epochs, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, save_dir)
+        "INSERT INTO table_list VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (num_epochs, num_layers, state_size, cell_type, dropout_keep_prob, batch_size, activation_type, save_dir)
     )
     cursor.execute(
         "CREATE TABLE {} (train_error real, test_error real, cost real)"
@@ -319,7 +320,6 @@ def train_network(model, prev_sess=None):
                     test_writer.add_summary(summary_test, tb_counter)
                     logits, y = sess.run([model["logits"], model["y"]], feed_dict_test)
                     
-                    print(logits, y)
                     print("Training error: {}".format(train_error / iter_num))
                     print("Testing error: {}\n".format(test_error))
                     
@@ -356,32 +356,30 @@ def train_network(model, prev_sess=None):
 
 if __name__ == "__main__":
     # Load data and define global variables.
-    model_pickle = "shape_model.pickle"
+    model_pickle = "len_orien.pickle"
     with open(model_pickle, "rb") as pickle_db:
         x_train, y_train, x_val, y_val, x_test, y_test = pickle.load(pickle_db)
 
     iter_num = 30
     batch_size = 5
-    num_layers = 5
+    num_layers = 4
     num_inputs = 12
-    num_epochs = 50
-    state_size = 128
+    num_epochs = 30
+    state_size = 64
     num_classes = 2
     dropout_keep_prob = 1
     num_steps = len(x_train[0])
     len_test = len(x_val)
     database = "shape_model.db"
-    y_train = [[y[0] / 400, y[1] / 100] for y in y_train]
-    y_val = [[y[0] / 400, y[1] / 100] for y in y_val]
+    y_train = [[y[0] / 400, (y[1] + 70) / 250] for y in y_train]
+    y_val = [[y[0] / 400, (y[1] + 70) / 250] for y in y_val]
     [x_train, y_train] = reshape_data_for_batch([x_train, y_train], batch_size)
 
     # prev_sess = "test_error_1_28_10_final"
     prev_sess = None
 
     create_result_folder()
-    num = 10
-    for cell_type in ["LSTM", "GRU"]:
-        for activation_type in ["relu", "tanh", "leaky_relu"]:
-            save_dir = "crack_03_10_{}".format(num)
-            main(prev_sess)
-            num += 1
+    cell_type = "LSTM"
+    activation_type = "leaky_relu"
+    save_dir = "crack_05_17_10"
+    main(prev_sess)
